@@ -30,7 +30,7 @@ def skeleton_to_graph(skel: np.ndarray) -> nx.Graph:
 
 
 def simplify_graph(graph: nx.Graph, tol: float = 3.0) -> nx.Graph:
-    # find all points with zero or more than 2 neighbors, put them into a queue for processing
+    # find all points with one or more than 2 neighbors, put them into a queue for processing
     major_nodes = [node for node in graph if len(graph.edges(node)) != 2]
     to_process = [node for node in graph if len(graph.edges(node)) != 2]
 
@@ -67,7 +67,7 @@ def simplify_graph(graph: nx.Graph, tol: float = 3.0) -> nx.Graph:
                 graph.add_edge(p, q, weight=distance(p, q))
                 if q not in major_nodes:
                     to_process.append(q)
-                    major_nodes.append(q)
+                    # major_nodes.append(q)
 
                 for pp in in_between:
                     graph.remove_node(pp)

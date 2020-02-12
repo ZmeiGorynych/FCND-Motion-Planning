@@ -6,9 +6,11 @@ import random
 import numpy as np
 import copy
 
-from skimage.morphology import medial_axis
+from skimage.morphology import medial_axis, erosion
 from skimage.util import invert
-from win32comext.shell.shell import StringAsFILEGROUPDESCRIPTOR
+from visualize_grid import plot_graph, plot_path
+import matplotlib.pyplot as plt
+
 
 from medial_graph import skeleton_to_graph, simplify_graph
 from astar import astar_graph_wrapper
@@ -29,7 +31,9 @@ class States(Enum):
     PLANNING = auto()
 
 
-def prepare_medial_axis_graph(TARGET_ALTITUDE: float, SAFETY_DISTANCE: float):
+def prepare_medial_axis_graph(
+    TARGET_ALTITUDE: float, SAFETY_DISTANCE: float, plot=False, tol=3.0
+):
     """
     Prepare the graph abstracted from the medial transforma
     This takes a while so we do it ahead of time
@@ -38,19 +42,36 @@ def prepare_medial_axis_graph(TARGET_ALTITUDE: float, SAFETY_DISTANCE: float):
     data = np.loadtxt("colliders.csv", delimiter=",", dtype="Float64", skiprows=2)
 
     # Define a grid for a particular altitude and safety margin around obstacles
-    grid, north_offset, east_offset = create_grid(
-        data, TARGET_ALTITUDE, SAFETY_DISTANCE
-    )
-    skeleton = medial_axis(invert(grid))
+    grid, north_offset, east_offset = create_grid(data, TARGET_ALTITUDE, 0)
+    inv_grid = invert(grid)
+    # let's make the boundaries to obstacles too so we don't stick to them
+    inv_grid[0, :] = 0
+    inv_grid[-1, :] = 0
+    inv_grid[:, 0] = 0
+    inv_grid[:, -1] = 0
+
+    # this is more elegant as doesn't rely on us knowing building
+    # representations as blocks with centers
+    for _ in range(int(SAFETY_DISTANCE * 1.5)):
+        inv_grid = erosion(inv_grid)
+
+    skeleton = medial_axis(inv_grid)
     g = skeleton_to_graph(skeleton)
-    g2 = simplify_graph(copy.deepcopy(g), tol=4)
+    g2 = simplify_graph(copy.deepcopy(g), tol=tol)
+    if plot:
+        print("plotting...")
+        plt.imshow(invert(inv_grid) + grid, origin="lower")
+        plot_graph(g2, "b")
+    print("returning medial graph")
+
     return g2
 
 
 class MotionPlanning(Drone):
-    def __init__(self, connection, TARGET_ALTITUDE, SAFETY_DISTANCE):
+    def __init__(self, connection, TARGET_ALTITUDE, SAFETY_DISTANCE, graph, plot=False):
         super().__init__(connection)
 
+        self.plot = plot
         self.target_position = np.array([0.0, 0.0, 0.0])
         self.waypoints = []
         self.in_mission = True
@@ -63,7 +84,7 @@ class MotionPlanning(Drone):
         self.register_callback(MsgID.LOCAL_POSITION, self.local_position_callback)
         self.register_callback(MsgID.LOCAL_VELOCITY, self.velocity_callback)
         self.register_callback(MsgID.STATE, self.state_callback)
-        self.g2 = prepare_medial_axis_graph(TARGET_ALTITUDE, SAFETY_DISTANCE)
+        self.g2 = graph
         self.TARGET_ALTITUDE = TARGET_ALTITUDE
         self.SAFETY_DISTANCE = SAFETY_DISTANCE
 
@@ -207,6 +228,8 @@ class MotionPlanning(Drone):
         # DONE: add diagonal motions with a cost of sqrt(2) to your A* implementation
         # added
         # or move to a different search space such as a graph (not done here)
+
+        # DONE (if you're feeling ambitious): Try a different approach altogether!
         print("Local Start and Goal: ", grid_start, grid_goal)
 
         start_ne_g, goal_ne_g, path, cost = astar_graph_wrapper(
@@ -214,8 +237,11 @@ class MotionPlanning(Drone):
         )
         print("planning done!")
         path = [p[0] for p in path]
-
-        # TODO (if you're feeling ambitious): Try a different approach altogether!
+        if self.plot:
+            print("plotting path on graph...")
+            plot_path(grid_start, grid_goal, path)
+            plt.show()
+            print("done!")
 
         # Convert path to waypoints
         waypoints = [
@@ -248,8 +274,16 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    conn = MavlinkConnection("tcp:{0}:{1}".format(args.host, args.port), timeout=60)
-    drone = MotionPlanning(conn, TARGET_ALTITUDE=5, SAFETY_DISTANCE=5)
+    TARGET_ALTITUDE = 5
+    SAFETY_DISTANCE = 5
+    # graph creation takes a bit of time, leading to potential timeout errors from the drone
+    # so we do it ahead of time
+    plot = False
+    graph = prepare_medial_axis_graph(TARGET_ALTITUDE, SAFETY_DISTANCE, plot, tol=4)
+
+    conn = MavlinkConnection("tcp:{0}:{1}".format(args.host, args.port), timeout=300)
+
+    drone = MotionPlanning(conn, TARGET_ALTITUDE, SAFETY_DISTANCE, graph, plot)
     time.sleep(1)
 
     drone.start()
