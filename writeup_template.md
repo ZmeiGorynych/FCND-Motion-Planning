@@ -12,7 +12,7 @@
 5. Use a collinearity test or ray tracing method (like Bresenham) to remove unnecessary waypoints.
 6. Return waypoints in local ECEF coordinates (format for `self.all_waypoints` is [N, E, altitude, heading], where the drone’s start location corresponds to [0, 0, 0, 0].
 7. Write it up.
-8. Congratulations!  Your Done!
+8. Congratulations!  You're Done!
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/1534/view) Points
 ### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
