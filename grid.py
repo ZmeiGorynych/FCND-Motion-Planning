@@ -1,7 +1,15 @@
 from enum import Enum
 import numpy as np
+from typing import Tuple
 from scipy.spatial import Voronoi
 from bresenham import bresenham
+
+
+def read_lat_lon(fn: str) -> Tuple[float, float]:
+    with open(fn, "r") as f:
+        first = next(f).replace("lat0 ", "").replace("lon0 ", "").strip().split(",")
+        return [float(x) for x in first]
+
 
 def create_grid(data, drone_altitude, safety_distance):
     """
@@ -31,12 +39,28 @@ def create_grid(data, drone_altitude, safety_distance):
         north, east, alt, d_north, d_east, d_alt = data[i, :]
         if alt + d_alt + safety_distance > drone_altitude:
             obstacle = [
-                int(np.clip(north - d_north - safety_distance - north_min, 0, north_size-1)),
-                int(np.clip(north + d_north + safety_distance - north_min, 0, north_size-1)),
-                int(np.clip(east - d_east - safety_distance - east_min, 0, east_size-1)),
-                int(np.clip(east + d_east + safety_distance - east_min, 0, east_size-1)),
+                int(
+                    np.clip(
+                        north - d_north - safety_distance - north_min, 0, north_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        north + d_north + safety_distance - north_min, 0, north_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        east - d_east - safety_distance - east_min, 0, east_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        east + d_east + safety_distance - east_min, 0, east_size - 1
+                    )
+                ),
             ]
-            grid[obstacle[0]:obstacle[1]+1, obstacle[2]:obstacle[3]+1] = 1
+            grid[obstacle[0] : obstacle[1] + 1, obstacle[2] : obstacle[3] + 1] = 1
 
     return grid, int(north_min), int(east_min)
 
@@ -69,12 +93,28 @@ def create_grid_and_edges(data, drone_altitude, safety_distance):
         north, east, alt, d_north, d_east, d_alt = data[i, :]
         if alt + d_alt + safety_distance > drone_altitude:
             obstacle = [
-                int(np.clip(north - d_north - safety_distance - north_min, 0, north_size - 1)),
-                int(np.clip(north + d_north + safety_distance - north_min, 0, north_size - 1)),
-                int(np.clip(east - d_east - safety_distance - east_min, 0, east_size - 1)),
-                int(np.clip(east + d_east + safety_distance - east_min, 0, east_size - 1)),
+                int(
+                    np.clip(
+                        north - d_north - safety_distance - north_min, 0, north_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        north + d_north + safety_distance - north_min, 0, north_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        east - d_east - safety_distance - east_min, 0, east_size - 1
+                    )
+                ),
+                int(
+                    np.clip(
+                        east + d_east + safety_distance - east_min, 0, east_size - 1
+                    )
+                ),
             ]
-            grid[obstacle[0]:obstacle[1] + 1, obstacle[2]:obstacle[3] + 1] = 1
+            grid[obstacle[0] : obstacle[1] + 1, obstacle[2] : obstacle[3] + 1] = 1
 
             # add center of obstacles to points list
             points.append([north - north_min, east - east_min])

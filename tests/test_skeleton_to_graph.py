@@ -5,7 +5,7 @@ from skimage.morphology import medial_axis
 from skimage.util import invert
 
 from medial_graph import skeleton_to_graph, simplify_graph
-from grid import create_grid_and_edges, create_grid
+from grid import create_grid_and_edges, create_grid, read_lat_lon
 from planning_utils import closest_point
 from astar import a_star_graph, heuristic, astar_graph_wrapper
 
@@ -14,6 +14,7 @@ class TestSkeleton_to_graph(TestCase):
     def test_skeleton_to_graph(self):
         # This is the same obstacle data from the previous lesson.
         filename = "../colliders.csv"
+        out = read_lat_lon(filename)
         data = np.loadtxt(filename, delimiter=",", dtype="Float64", skiprows=2)
         start_ne = (25, 100)
         goal_ne = (750.0, 370.0)
@@ -22,7 +23,7 @@ class TestSkeleton_to_graph(TestCase):
         safety_distance = 3
         # This is now the routine using Voronoi
         grid, _, _ = create_grid(data, drone_altitude, safety_distance)
-        skeleton = medial_axis(invert(grid), return_distance=False)
+        skeleton = medial_axis(invert(grid))
         G = skeleton_to_graph(skeleton)
         G2 = simplify_graph(copy.deepcopy(G))
 
